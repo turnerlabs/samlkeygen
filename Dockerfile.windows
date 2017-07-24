@@ -1,0 +1,16 @@
+FROM python:2.7.13-windowsservercore
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+RUN mkdir c:\\app
+WORKDIR c:\\app
+
+COPY requirements.txt c:\\app
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . c:\\app
+
+ENV PYTHONIOENCODING UTF-8
+
+ENTRYPOINT [ "python", "samlapi.py", "authenticate" ]
+CMD [ "--help" ]
