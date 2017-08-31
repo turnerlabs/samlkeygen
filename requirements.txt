@@ -1,5 +1,0 @@
-bs4
-requests_ntlm
-argh
-keyring
-boto
