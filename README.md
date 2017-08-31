@@ -5,13 +5,13 @@ and create temporary tokens for use with AWS API clients.
 
 ## Two approaches
 
-If you have Docker installed on your workstation, you can run the pre-built docker image
-directly from Quay. Since this approach requires a number of parameters to be
-passed in as environment variables, you will probably want to create a set of
-shell aliases, functions, or scripts; we give examples below, and the git repo
-(https://github.com/turnerlabs/samlkeygen) includes a file `docker-aliases.bash`
-setting up the commands refrenced below; the definitions may also be found at
-the bottom of this README.
+If you have Docker installed on your workstation, you can run the pre-built
+docker image directly from dockerhub. Since this approach requires a number of
+parameters to be passed in as environment variables, you will probably want to
+create a set of shell aliases, functions, or scripts; we give examples below,
+and the git repo (https://github.com/turnerlabs/samlkeygen) includes a file
+`docker-aliases.bash` setting up the commands refrenced below; the definitions
+may also be found at the bottom of this README.
 
 If you have Python installed on your workstation and prefer to run the script
 locally, you can install the module from `PyPI` with `pip install samlkeygen`.
@@ -146,7 +146,7 @@ directly (via Docker or Python) with the `--help` flag.
 ```
 alias samld='docker run -it --rm -v "${AWS_DIR:-$HOME/.aws}:/aws" -e "USER=$USER" \
              -e "ADFS_DOMAIN=$ADFS_DOMAIN" -e "ADFS_URL=$ADFS_URL" \
-             quay.io/turner/samlkeygen authenticate --all-accounts --auto-update'
-alias awsprofs='docker run --rm -v ~/.aws:/aws quay.io/turner/samlkeygen list-profiles'
-alias awsprof='docker run --rm -v ~/.aws:/aws quay.io/turner/samlkeygen select-profile'
+             turnerlabs/samlkeygen authenticate --all-accounts --auto-update'
+alias awsprofs='docker run --rm -v ~/.aws:/aws turnerlabs/samlkeygen list-profiles'
+alias awsprof='docker run --rm -v ~/.aws:/aws turnerlabs/samlkeygen select-profile'
 ```
