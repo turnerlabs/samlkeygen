@@ -1,12 +1,10 @@
 FROM python:2.7.13
 
 RUN mkdir -p /usr/src/app
-WORKDIR /usr/src/app
-
-COPY requirements.txt /usr/src/app/
-RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . /usr/src/app
+WORKDIR /usr/src/app
+RUN pip install .
+ENV AWS_DIR /aws
 
-ENTRYPOINT [ "python", "./samlapi.py", "authenticate" ]
+ENTRYPOINT [ "python", "-msamlkeygen" ]
 CMD [ "--help" ]
