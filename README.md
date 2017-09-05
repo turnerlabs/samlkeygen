@@ -150,6 +150,7 @@ $ awsrun shared-services-admin aws iam list-account-aliases
 
 ## The Docker aliases
 
+### Bash
 ```
 alias samld='docker run -it --rm -v "${AWS_DIR:-$HOME/.aws}:/aws" -e "USER=$USER" \
              -e "ADFS_DOMAIN=$ADFS_DOMAIN" -e "ADFS_URL=$ADFS_URL" \
@@ -158,6 +159,25 @@ alias samld='docker run -it --rm -v "${AWS_DIR:-$HOME/.aws}:/aws" -e "USER=$USER
 alias awsprofs='docker run --rm -v ~/.aws:/aws turnerlabs/samlkeygen list-profiles'
 
 alias awsprof='docker run --rm -v ~/.aws:/aws turnerlabs/samlkeygen select-profile'
+```
+
+### PowerShell
+```
+$AWS_DIR = "$env:UserProfile\.aws" -replace "\\","//"
+function Run-SamlKeygenAuto {
+    docker run -it --rm -v ${AWS_DIR}:/aws -e "USER=$env:UserName" `
+    -e "ADFS_DOMAIN=$ADFS_DOMAIN" -e "ADFS_URL=$ADFS_URL" `
+    quay.io/turner/samlkeygen authenticate --all-accounts --auto-update
+}
+New-Alias samld Run-SamlKeygenAuto
+function List-SamlKeygenProfiles {
+    docker run --rm -v ~/.aws:/aws quay.io/turner/samlkeygen list-profiles
+}
+New-Alias awsprofs List-SamlKeygenProfiles
+function Run-SamlKeygen {
+    docker run --rm -v ~/.aws:/aws quay.io/turner/samlkeygen select-profile
+}
+New-Alias awsprof Run-SamlKeygen
 ```
 
 ## Full Usage documentation
