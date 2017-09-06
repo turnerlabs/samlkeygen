@@ -355,9 +355,11 @@ def run_command(pattern, *command, **kwargs):
 def version():
     print(__version__)
 
-if __name__ == '__main__':
+def main():
     parser = argh.ArghParser()
     parser.prog = 'samlkeygen'
     parser.add_commands([authenticate, list_profiles, select_profile, run_command, version])
     parser.dispatch()
 
+if __name__ == '__main__':
+    main()

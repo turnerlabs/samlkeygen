@@ -20,9 +20,10 @@ setup(
   ],
   entry_points={
     'console_scripts': [
+      'samlkeygen = samlkeygen:main',
       'samld = samlkeygen:auto_authenticate',
       'awsprof = samlkeygen:list_profiles',
-      'awsprofs = samlkeygen:select_profile' 
+      'awsprofs = samlkeygen:select_profile'
     ]
   }
 )
