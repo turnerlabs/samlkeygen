@@ -128,11 +128,17 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
                 sys.stdout.flush()
                 time.sleep(60)
 
-def auto_authenticate(url=os.environ.get('ADFS_URL',''), region=None,
-                      batch=False, domain=os.environ.get('ADFS_DOMAIN',''), username=os.environ.get('USER',''),
-                      password=None, filename=CREDS_FILE, verbose=False):
-    authenticate(url, region, batch, True, None, None, domain, None, username,
-                 password, filename, True, verbose)
+def samld():
+    sys.argv[1:1] = ['authenticate', '--all-accounts', '--auto-update']
+    main()
+
+def prof():
+    sys.argv[1:1] = ['select-profile']
+    main()
+
+def profs():
+    sys.argv[1:1] = ['list-profiles']
+    main()
 
 def account_name(account_arn, saml_response, role_arn, region):
     "Convert account ARN to friendly name if available"
