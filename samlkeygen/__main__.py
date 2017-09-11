@@ -121,7 +121,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
 
         if auto_update:
             trace('Token retrieval took {} seconds'.format(time.time() - started))
-            next_update = time.time() + 59 * 60
+            next_update = time.time() + 2 * 60
             while time.time() < next_update:
                 counter = int((next_update - time.time()) // 60)
                 print('{} minutes till credential refresh\r'.format(counter), end='')
@@ -329,8 +329,8 @@ def select_profile(pattern, filename=CREDS_FILE):
         die('Pattern is not unique. It matches these profiles: \n\t' + '\n\t'.join(profiles) + '\n')
     print(profiles[0])
 
-@arg('--all-profiles', help='Run command once each for all profiles in credentials file')
-@arg('--multiple',     help='If pattern matches multiple profiles, run command in all of them')
+@arg('--all-profiles', help='Run command once each for all profiles in credentials file', default=False)
+@arg('--multiple',     help='If pattern matches multiple profiles, run command in all of them', default=False)
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('--verbose',      help='Display trace output', default=False)
 @arg('pattern', help='Run command with profile matching pattern')
