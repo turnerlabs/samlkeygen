@@ -1,4 +1,4 @@
-__version_info__ = (0,9,1) 
+__version_info__ = (0,9,4) 
 __version__ = '.'.join(str(d) for d in __version_info__)
 
 if __name__ == '__main__':
