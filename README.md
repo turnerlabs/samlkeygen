@@ -167,15 +167,7 @@ $AWS_DIR = "$env:UserProfile\.aws" -replace "\\","//"
 function Run-SamlKeygenAuto {
     docker run -it --rm -v ${AWS_DIR}:/aws -e "USER=$env:UserName" `
     -e "ADFS_DOMAIN=$ADFS_DOMAIN" -e "ADFS_URL=$ADFS_URL" `
-    quay.io/turner/samlkeygen authenticate --all-accounts --auto-update
-}
-New-Alias samld Run-SamlKeygenAuto
-function List-SamlKeygenProfiles {
-    docker run --rm -v ~/.aws:/aws quay.io/turner/samlkeygen list-profiles
-}
-New-Alias awsprofs List-SamlKeygenProfiles
-function Run-SamlKeygen {
-    docker run --rm -v ~/.aws:/aws quay.io/turner/samlkeygen select-profile
+    docker run --rm -v ~/.aws:/aws turnerlabs/samlkeygen select-profile
 }
 New-Alias awsprof Run-SamlKeygen
 ```
