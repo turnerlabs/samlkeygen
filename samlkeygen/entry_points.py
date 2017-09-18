@@ -72,18 +72,25 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     # if account is specified, look for it as an existing profile first
     account_arn = None
     if account:
-        if account.startswith('arn:'):
-            account_arn = account
-        else:
-            try:
-                profile, data = get_profile(filename, account)
-            except LookupError:
-                profile = None
-            regex = re.compile(account)
+        try:
+            account_id = int(account)
+        except ValueError:
+            account_id = None
+        if account_id:
+            account = 'arn:aws:iam::{}'.format(account_id)
+        regex = re.compile(account)
+        for principal_arn, role_arn in roles:
+            if regex.search(principal_arn):
+                account_arn = principal_arn
+                break
+        # no easy find on account id, have to actually fetch account aliases:
+        if not account_arn:
             for principal_arn, role_arn in roles:
-                if regex.search(account_name(principal_arn, saml_response, role_arn, region)):
+                account_name = account_name(principal_arn, saml_response, role_arn, region)
+                if regex.search(account_name):
                     account_arn = principal_arn
                     break
+
     if account_arn:
         roles = [r for r in roles if r[0] == account_arn]
 
