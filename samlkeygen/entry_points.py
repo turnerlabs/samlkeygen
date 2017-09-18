@@ -121,7 +121,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
 
         if auto_update:
             trace('Token retrieval took {} seconds'.format(time.time() - started))
-            next_update = time.time() + 2 * 60
+            next_update = time.time() + 59 * 60
             while time.time() < next_update:
                 counter = int((next_update - time.time()) // 60)
                 print('{} minutes till credential refresh\r'.format(counter), end='')
