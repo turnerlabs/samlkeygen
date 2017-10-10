@@ -175,7 +175,7 @@ def update_creds_file(filename, profile, token):
     credentials.set(profile, 'aws_secret_access_key', token['Credentials']['SecretAccessKey'])
     credentials.set(profile, 'aws_session_token', token['Credentials']['SessionToken'])
     credentials.set(profile, 'aws_security_token', token['Credentials']['SessionToken'])
-    credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%FT%TZ'))
+    credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
 
     with open(filename, 'w+') as credsfile:
         credentials.write(credsfile)
