@@ -86,7 +86,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         # no easy find on account id, have to actually fetch account aliases:
         if not account_arn:
             for principal_arn, role_arn in roles:
-                account_name = account_name(principal_arn, saml_response, role_arn, region)
+                account_name = get_account_name(principal_arn, saml_response, role_arn, region)
                 if regex.search(account_name):
                     account_arn = principal_arn
                     break
@@ -147,17 +147,17 @@ def profs():
     sys.argv[1:1] = ['list-profiles']
     main()
 
-def account_name(account_arn, saml_response, role_arn, region):
+def get_account_name(account_arn, saml_response, role_arn, region):
     "Convert account ARN to friendly name if available"
-    if account_arn not in account_name.map:
+    if account_arn not in get_account_name.map:
         token = get_sts_token(role_arn, account_arn, saml_response, region)
         if token:
-            account_name.map[account_arn] = get_account_alias(token)
+            get_account_name.map[account_arn] = get_account_alias(token)
     try:
-        return account_name.map[account_arn]
+        return get_account_name.map[account_arn]
     except KeyError:
         return account_arn
-account_name.map = {}
+get_account_name.map = {}
 
 def role_name(role_arn):
     "Extract role name from ARN to friendly name"
@@ -190,7 +190,7 @@ def authenticate_account_role(filename, profile, principal_arn, role_arn, saml_c
     if not token:
         die('Unable to get token for ({}, {})'.format(principal_arn, role_arn))
     if not profile:
-        profile = '{}:{}'.format(account_name(principal_arn, saml_response, role_arn, region),
+        profile = '{}:{}'.format(get_account_name(principal_arn, saml_response, role_arn, region),
                                  role_name(role_arn))
     print('Writing credentials for profile {}'.format(profile))
     update_creds_file(filename, profile, token)
