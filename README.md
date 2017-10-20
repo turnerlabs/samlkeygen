@@ -49,7 +49,7 @@ will not be echoed).
 |----------|----------------------|------------|
 |--url     | ADFS\_URL            | Complete URL to ADFS SAML endpoint for AWS
 |--domain  | ADFS\_DOMAIN         | Active Directory/ADFS domain name|
-|--user    | USER                 | Your Active Directory username (sAMAccountName)  |
+|--username| USER                 | Your Active Directory username (sAMAccountName)  |
 |--password| PASSWORD             | Your Active Directory password (again, we recommend you leave this unset and allow the program to prompt you for it)   |
 
 Depending on your environment, you may also have to be on your corporate LAN or
