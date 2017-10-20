@@ -10,3 +10,6 @@ README.rst: README.md
 
 clean: 
 	rm -rf dist samlkeygen.egg-info *.pyc */*.pyc README.rst
+
+test:
+	bash ./run-tests.sh

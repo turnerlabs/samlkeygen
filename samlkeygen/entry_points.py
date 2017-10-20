@@ -40,7 +40,7 @@ LOCK_FILE = CREDS_FILE + '.lck'
 @arg('--region',       help='AWS region to use', default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
 @arg('--batch',        help='Disable all interactive prompts')
 @arg('--all-accounts', help='Retrieve tokens for all accounts and roles')
-@arg('--profile',      help='Name to give profile in credentials file (default account:role)')
+@arg('--profile',      help='Naming pattern for profile names; %a=account alias, %r=role name (default %a:%r)')
 @arg('--account',      help='Name or ID of AWS account for which to generate token')
 @arg('--role',         help='Name or ARN of role for which to generate token (default: all for account)')
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
@@ -51,7 +51,7 @@ LOCK_FILE = CREDS_FILE + '.lck'
 @arg('--verbose',      help='Display trace output', default=False)
 def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'),
                  batch=False, all_accounts=False, account=None,
-                 profile=None, domain=os.environ.get('ADFS_DOMAIN',''), role=None, username=os.environ.get('USER',''),
+                 profile='%a:%r', domain=os.environ.get('ADFS_DOMAIN',''), role=None, username=os.environ.get('USER',''),
                  password=None, filename=CREDS_FILE, auto_update=False, verbose=False):
     "Authenticate via SAML and write out temporary security tokens to the credentials file"
 
@@ -61,8 +61,8 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     if not (all_accounts or account):
         die('Need --account or --all-accounts')
 
-    if all_accounts and (account or role or profile):
-        die('Specify --account/--role/--profile or --all-accounts, not both.')
+    if all_accounts and (account or role):
+        die('Specify --account/--role or --all-accounts, not both.')
 
     # authenticate and get list of roles via SAML
     saml_creds, saml_response = ntlm_authenticate(url, domain, username,
@@ -139,12 +139,16 @@ def samld():
     sys.argv[1:1] = ['authenticate', '--all-accounts', '--auto-update']
     main()
 
-def prof():
+def awsprof():
     sys.argv[1:1] = ['select-profile']
     main()
 
-def profs():
+def awsprofs():
     sys.argv[1:1] = ['list-profiles']
+    main()
+
+def awsrun():
+    sys.argv[1:1] = ['run-command']
     main()
 
 def get_account_name(account_arn, saml_response, role_arn, region):
@@ -159,7 +163,7 @@ def get_account_name(account_arn, saml_response, role_arn, region):
         return account_arn
 get_account_name.map = {}
 
-def role_name(role_arn):
+def get_role_name(role_arn):
     "Extract role name from ARN to friendly name"
     return role_arn.split(':')[5].replace('role/', '')
 
@@ -180,7 +184,7 @@ def update_creds_file(filename, profile, token):
     with open(filename, 'w+') as credsfile:
         credentials.write(credsfile)
 
-def authenticate_account_role(filename, profile, principal_arn, role_arn, saml_creds, region):
+def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, region):
     if role_arn is None:
         die('Unable to get credentials for null role ARN')
 
@@ -189,9 +193,9 @@ def authenticate_account_role(filename, profile, principal_arn, role_arn, saml_c
     token = get_sts_token(role_arn, principal_arn, saml_response, region)
     if not token:
         die('Unable to get token for ({}, {})'.format(principal_arn, role_arn))
-    if not profile:
-        profile = '{}:{}'.format(get_account_name(principal_arn, saml_response, role_arn, region),
-                                 role_name(role_arn))
+    account_name = get_account_name(principal_arn, saml_response, role_arn, region)
+    role_name = get_role_name(role_arn)
+    profile = profile_format.replace('%a', account_name).replace('%r', role_name)
     print('Writing credentials for profile {}'.format(profile))
     update_creds_file(filename, profile, token)
 
@@ -344,9 +348,9 @@ def select_profile(pattern, filename=CREDS_FILE):
 @arg('command', help='Command to run')
 def run_command(pattern, *command, **kwargs):
     "Run a command with a given profile"
-    all_profiles = 'all_profiles' in kwargs
-    multiple = 'multiple' in kwargs
-    verbose = 'verbose' in kwargs
+    all_profiles = 'all_profiles' in kwargs and kwargs['all_profiles']
+    multiple = 'multiple' in kwargs and kwargs['multiple']
+    verbose = 'verbose' in kwargs and kwargs['verbose']
     filename = CREDS_FILE
     if 'filename' in kwargs:
         filename=kwargs['filename']
