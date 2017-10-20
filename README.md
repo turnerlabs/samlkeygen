@@ -71,11 +71,11 @@ operation called `auto-update` which requests your password once, then runs
 continually and automatically requests and saves new credentials every hour
 just before the old ones expire. The supplied entry points include `samld`,
 which can usually be run without arguments if the environment variables are set
-properly, or with just `-u sAMAccountName` if that isn't the
+properly, or with just `--username sAMAccountName` if that isn't the
 same as your local `$USER` on your workstation.  Example:
 
 ```
-$ samld -u gpburdell
+$ samld --username gpburdell
 ...
 Writing credentials for profile aws-shared-services:aws-shared-services-admin
 Writing credentials for profile aws-shared-services:aws-shared-services-dns
