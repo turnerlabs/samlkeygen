@@ -22,8 +22,9 @@ setup(
     'console_scripts': [
       'samlkeygen = samlkeygen:main',
       'samld = samlkeygen:samld',
-      'awsprof = samlkeygen:prof',
-      'awsprofs = samlkeygen:profs'
+      'awsprof = samlkeygen:awsprof',
+      'awsprofs = samlkeygen:awsprofs',
+      'awsrun = samlkeygen:awsrun'
     ]
   }
 )
