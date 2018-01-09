@@ -16,6 +16,9 @@ from datetime import datetime
 from fasteners.process_lock import interprocess_locked
 from multiprocessing import Process
 from os import path
+from urlparse import urlparse
+from pprint import pprint
+
 
 import argh
 import base64
@@ -35,6 +38,7 @@ import xml.etree.ElementTree
 AWS_DIR = os.environ.get('AWS_DIR', path.expanduser('~/.aws'))
 CREDS_FILE = path.join(AWS_DIR, 'credentials')
 LOCK_FILE = CREDS_FILE + '.lck'
+AWS_Account_Aliases = []
 
 @arg('--url',          help='URL to ADFS provider', default=os.environ.get('ADFS_URL', ''))
 @arg('--region',       help='AWS region to use', default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
@@ -293,8 +297,13 @@ def ntlm_authenticate(url, domain, username, password, batch=False, sslverificat
 
     if not saml_response:
         die("Error getting SAML Response. If not on LAN, please VPN in.")
-    else:
-        return (url, domain, username, password), saml_response
+
+    form_action = soup.find_all('form')[0].get('action')
+
+    if form_action:
+        get_acaount_aliases( url, saml_response, form_action )
+
+    return (url, domain, username, password), saml_response
 
 def extract_roles(saml_response):
     AWS_ATTRIBUTE_ROLE = 'https://aws.amazon.com/SAML/Attributes/Role'
@@ -307,6 +316,31 @@ def extract_roles(saml_response):
         for attr in root.iter('{urn:oasis:names:tc:SAML:2.0:assertion}Attribute')
           if attr.get('Name') ==AWS_ATTRIBUTE_ROLE] for item in sublist]
 
+def get_acaount_aliases(url, saml_response, form_action):
+    global AWS_Account_Aliases
+    session=requests.Session()
+    urlparts = urlparse(url)
+    headers = ({ "Host": re.sub( ':.*$', '', urlparse(form_action).netloc ), \
+             "Connection": 'keep-alive', \
+             "Content-Length": str( len( saml_response ) ), \
+             "Pragma": 'no-cache', \
+             "Cache-Control": 'no-cache', \
+             "Origin": urlparts.scheme + '//' + urlparts.netloc + '/', \
+             "Upgrade-Insecure-Requests": '1', \
+             "Content-Type": 'application/x-www-form-urlencoded', \
+             "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8', \
+             "Referer": url, \
+             "Accept-Encoding": "gzip, deflate, br", \
+             "Accept-Language": "en-US,en;q=0.9", \
+             'User-Agent': 'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'})
+    postdata= { 'SAMLResponse' :  saml_response  }
+    awsr=session.post( form_action,  data=postdata, headers=headers );
+
+    soup = bs4.BeautifulSoup( awsr.text, "html.parser")
+    for divs in soup.find_all( 'div', { "class": "saml-account-name" } ):
+        chunks = divs.text.split( ' ' )
+        AWS_Account_Aliases.append( { 'id':chunks[2].strip('()'), 'alias':chunks[1] } )
+
 # Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication
 def get_sts_token(role_arn, principal_arn, assertion, region):
     client = boto3.client('sts', region_name = region)
@@ -318,16 +352,13 @@ def get_sts_token(role_arn, principal_arn, assertion, region):
         return None
 
 def get_account_alias(token):
-    try:
-        client = boto3.client('iam',
-                aws_access_key_id = token['Credentials']['AccessKeyId'],
-                aws_secret_access_key = token['Credentials']['SecretAccessKey'],
-                aws_session_token = token['Credentials']['SessionToken'])
-        response = client.list_account_aliases()
-        return response['AccountAliases'][0]
-    except botocore.exceptions.ClientError as e:
-        warn("Failed to get account alias for {}: {}".format(token['AssumedRoleUser']['Arn'],e))
-        return token['AssumedRoleUser']['Arn'].split(":")[5] # The account Number
+    account_id = token['AssumedRoleUser']['Arn'].split(":")[4]
+    for acct in AWS_Account_Aliases:
+        if acct['id'] == account_id:
+            return acct['alias']
+
+    warn("Failed to get account alias for {}".format(token['AssumedRoleUser']['Arn']))
+    return token['AssumedRoleUser']['Arn'].split(":")[4] # The account Number
 
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('pattern', help='Run command with profile matching pattern')
