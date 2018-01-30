@@ -33,12 +33,14 @@ import requests_ntlm
 import subprocess
 import time
 import xml.etree.ElementTree
+import socket
 
 # this will move if running under Docker
 AWS_DIR = os.environ.get('AWS_DIR', path.expanduser('~/.aws'))
 CREDS_FILE = path.join(AWS_DIR, 'credentials')
 LOCK_FILE = CREDS_FILE + '.lck'
 AWS_Account_Aliases = []
+AssertionExpires = 0
 
 @arg('--url',          help='URL to ADFS provider', default=os.environ.get('ADFS_URL', ''))
 @arg('--region',       help='AWS region to use', default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
@@ -68,9 +70,31 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     if all_accounts and (account or role):
         die('Specify --account/--role or --all-accounts, not both.')
 
-    # authenticate and get list of roles via SAML
-    saml_creds, saml_response = ntlm_authenticate(url, domain, username,
-                                                  password, batch)
+
+    # check to see if url hostname resolves to 10 netwrok and assume VPN connection is up
+    if not url:
+            die('Pass ADFS URL via --url or set ADFS_URL in environment.')
+
+    if not domain:
+        die('Pass ADFS authentication domain via --domain or set ADFS_DOMAIN in environment.')
+
+    if not username:
+        if not batch:
+            username = input('Username:')
+        if not username:
+            die('Unable to determine ADFS username. Specify via --username option or run interactively.')
+
+    domain_username = format_domain_username(domain, username)
+
+    if not password:
+        if not batch:
+            password = getpass.getpass("{}'s password: ".format(domain_username))
+    if not password:
+        die('No password given for {}. Respond to prompt or specify via --password option.'.format(username))
+
+    saml_creds, saml_response = authorize(url, domain, username, password, batch)
+
+
     roles = extract_roles(saml_response)
 
     # if account is specified, look for it as an existing profile first
@@ -123,7 +147,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         started = time.time()
         for account_arn, role_arn in roles:
             trace('account_arn={}, role_arn={}'.format(account_arn, role_arn));
-            p = Process(target=authenticate_account_role, args=(filename, profile, account_arn, role_arn, saml_creds, region))
+            p = Process(target=authenticate_account_role, args=(filename, profile, account_arn, role_arn, saml_creds, saml_response, region))
             p.start()
             processes.append(p)
 
@@ -154,6 +178,16 @@ def awsprofs():
 def awsrun():
     sys.argv[1:1] = ['run-command']
     main()
+
+def authorize(url, domain, username, password, batch):
+    ip = socket.gethostbyname( urlparse(url).hostname )
+    if ip.split('.')[0] == '10':
+        saml_creds, saml_response = ntlm_authenticate(url, domain, username,
+                                                      password, batch)
+    else:
+        saml_creds, saml_response = web_authenticate(url, domain, username,
+                                                     password, batch)
+    return( saml_creds, saml_response)
 
 def get_account_name(account_arn, saml_response, role_arn, region):
     "Convert account ARN to friendly name if available"
@@ -188,13 +222,16 @@ def update_creds_file(filename, profile, token):
     with open(filename, 'w+') as credsfile:
         credentials.write(credsfile)
 
-def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, region):
+def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, saml_response, region):
     if role_arn is None:
         die('Unable to get credentials for null role ARN')
 
     trace('getting token for role_arn={}, principal_arn={}'.format(role_arn,principal_arn))
-    saml_creds, saml_response = ntlm_authenticate(*saml_creds, batch=True)
+
+    if assertion_expired():
+        saml_creds, saml_response = authorize(*saml_creds, batch=True)
     token = get_sts_token(role_arn, principal_arn, saml_response, region)
+
     if not token:
         die('Unable to get token for ({}, {})'.format(principal_arn, role_arn))
     account_name = get_account_name(principal_arn, saml_response, role_arn, region)
@@ -258,42 +295,20 @@ def trace_off():
 def tracing():
     return os.environ.get('SAMLAUTH_DEBUG', 'false').lower() == 'true'
 
-def ntlm_authenticate(url, domain, username, password, batch=False, sslverification=True):
-    if not url:
-        die('Pass ADFS URL via --url or set ADFS_URL in environment.')
+def format_domain_username(domain, username):
+    return('{}\\{}'.format(domain, username))
 
-    if not domain:
-        die('Pass ADFS authentication domain via --domain or set ADFS_DOMAIN in environment.')
-
-    if not username:
-        if not batch:
-            username = input('Username:')
-        if not username:
-            die('Unable to determine ADFS username. Specify via --username option or run interactively.')
-
-    domain_username = '{}\\{}'.format(domain, username)
-
-    if not password:
-        if not batch:
-            password = getpass.getpass("{}'s password: ".format(domain_username))
-        if not password:
-            die('No password given for {}. Respond to prompt or specify via --password option.'.format(username))
-
-    trace("into ntlm_authenticate; url={}".format(url))
-    session = requests.Session()
-    session.auth = requests_ntlm.HttpNtlmAuth(domain_username, password, session)
-    headers = {'User-Agent': 'Mozilla/5.0 (compatible; MSIE 11; Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
-    response = session.get(url, verify=sslverification, headers=headers)
-
+def extract_saml_assertion(url,response):
+    global AssertionExpires
     # Now parse the ADFS Server's response to find the SAML element we need.
     #trace('response.text = "{}"'.format(response.text))
     soup = bs4.BeautifulSoup(response.text, 'html.parser')
     try:
-      saml_response = [
-        input_tag.get('value') for input_tag in soup.find_all('input') if input_tag.get('name') == 'SAMLResponse'
-      ][-1]
+        saml_response = [
+            input_tag.get('value') for input_tag in soup.find_all('input') if input_tag.get('name') == 'SAMLResponse'
+        ][-1]
     except IndexError:
-      saml_response = None
+        saml_response = None
 
     if not saml_response:
         die("Error getting SAML Response. If not on LAN, please VPN in.")
@@ -302,6 +317,53 @@ def ntlm_authenticate(url, domain, username, password, batch=False, sslverificat
 
     if form_action:
         get_acaount_aliases( url, saml_response, form_action )
+
+    AssertionExpires = int( time.time() ) + 300
+    return(saml_response)
+
+def assertion_expired():
+    global AssertionExpires
+    return int( time.time() ) >= AssertionExpires
+
+
+def ntlm_authenticate(url, domain, username, password, batch=False, sslverification=True):
+
+    domain_username = format_domain_username(domain, username)
+    trace("into ntlm_authenticate; url={}".format(url))
+    session = requests.Session()
+    session.auth = requests_ntlm.HttpNtlmAuth(domain_username, password, session)
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible; MSIE 11; Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
+    response = session.get(url, verify=sslverification, headers=headers)
+
+    saml_response = extract_saml_assertion(url,response)
+
+    return (url, domain, username, password), saml_response
+
+def web_authenticate(url, domain, username, password, batch=False, sslverification=True):
+
+    session = requests.Session()
+    headers = {'User-Agent': 'Mozilla/5.0 (compatible, MSIE 11, "\
+                    "Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'}
+    domain_username = format_domain_username(domain, username)
+    postdata= { 'UserName' : domain_username , 'Password': password, 'AuthMethod':'FormsAuthentication' }
+    response = session.post( url, verify=sslverification, headers=headers, data=postdata )
+    saml_response=''
+    if response.reason == 'OK':
+        mfa_postdata = {}
+        # iterate the form extracting all hidden inputs to be passed
+        soup = bs4.BeautifulSoup( response.text, "html.parser")
+        for form in soup.find_all( 'form', { "id": 'passcodeForm' } ):
+            for input in form.find_all( 'input' ):
+                if input['type'] == 'hidden':
+                    mfa_postdata[ input['name'] ] = input['value']
+
+        mfa_postdata['Passcode'] = raw_input("Pin + Rsa Token: ")
+
+        response = session.post(url, verify=True, headers=headers, data=mfa_postdata)
+
+        saml_response = extract_saml_assertion(url,response)
+    else:
+        die( "Response from {}: {}".format( urlparse(url).hostname, response.reason ) )
 
     return (url, domain, username, password), saml_response
 
