@@ -17,7 +17,7 @@ from fasteners.process_lock import interprocess_locked
 from multiprocessing import Process
 from os import path
 from urlparse import urlparse
-from pprint import pprint
+
 
 
 import argh
@@ -316,7 +316,7 @@ def extract_saml_assertion(url,response):
     form_action = soup.find_all('form')[0].get('action')
 
     if form_action:
-        get_acaount_aliases( url, saml_response, form_action )
+        get_account_aliases( url, saml_response, form_action )
 
     AssertionExpires = int( time.time() ) + 300
     return(saml_response)
@@ -357,7 +357,7 @@ def web_authenticate(url, domain, username, password, batch=False, sslverificati
                 if input['type'] == 'hidden':
                     mfa_postdata[ input['name'] ] = input['value']
 
-        mfa_postdata['Passcode'] = raw_input("Pin + Rsa Token: ")
+        mfa_postdata['Passcode'] = getpass.getpass("Pin + Rsa Token: ")
 
         response = session.post(url, verify=True, headers=headers, data=mfa_postdata)
 
@@ -378,22 +378,22 @@ def extract_roles(saml_response):
         for attr in root.iter('{urn:oasis:names:tc:SAML:2.0:assertion}Attribute')
           if attr.get('Name') ==AWS_ATTRIBUTE_ROLE] for item in sublist]
 
-def get_acaount_aliases(url, saml_response, form_action):
+def get_account_aliases(url, saml_response, form_action):
     global AWS_Account_Aliases
     session=requests.Session()
     urlparts = urlparse(url)
-    headers = ({ "Host": re.sub( ':.*$', '', urlparse(form_action).netloc ), \
-             "Connection": 'keep-alive', \
-             "Content-Length": str( len( saml_response ) ), \
-             "Pragma": 'no-cache', \
-             "Cache-Control": 'no-cache', \
-             "Origin": urlparts.scheme + '//' + urlparts.netloc + '/', \
-             "Upgrade-Insecure-Requests": '1', \
-             "Content-Type": 'application/x-www-form-urlencoded', \
-             "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8', \
-             "Referer": url, \
-             "Accept-Encoding": "gzip, deflate, br", \
-             "Accept-Language": "en-US,en;q=0.9", \
+    headers = ({ "Host": re.sub( ':.*$', '', urlparse(form_action).netloc ),
+             "Connection": 'keep-alive',
+             "Content-Length": str( len( saml_response ) ),
+             "Pragma": 'no-cache',
+             "Cache-Control": 'no-cache',
+             "Origin": urlparts.scheme + '//' + urlparts.netloc + '/',
+             "Upgrade-Insecure-Requests": '1',
+             "Content-Type": 'application/x-www-form-urlencoded',
+             "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+             "Referer": url,
+             "Accept-Encoding": "gzip, deflate, br",
+             "Accept-Language": "en-US,en;q=0.9",
              'User-Agent': 'Mozilla/5.0 (compatible, MSIE 11, Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko'})
     postdata= { 'SAMLResponse' :  saml_response  }
     awsr=session.post( form_action,  data=postdata, headers=headers );
