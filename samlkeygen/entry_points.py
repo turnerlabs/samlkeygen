@@ -46,7 +46,7 @@ AssertionExpires = 0
 @arg('--region',       help='AWS region to use', default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
 @arg('--batch',        help='Disable all interactive prompts')
 @arg('--all-accounts', help='Retrieve tokens for all accounts and roles')
-@arg('--profile',      help='Naming pattern for profile names; %a=account alias, %r=role name (default %a:%r)')
+@arg('--profile',      help='Naming pattern for profile names; %%a=account alias, %%r=role name (default %%a:%%r)')
 @arg('--account',      help='Name or ID of AWS account for which to generate token')
 @arg('--role',         help='Name or ARN of role for which to generate token (default: all for account)')
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
@@ -220,6 +220,7 @@ def update_creds_file(filename, profile, token):
     credentials.set(profile, 'aws_session_token', token['Credentials']['SessionToken'])
     credentials.set(profile, 'aws_security_token', token['Credentials']['SessionToken'])
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
+    credentials.set(profile, 'expiration', token['Credentials']['Expiration'])
 
     with open(filename, 'w+') as credsfile:
         credentials.write(credsfile)
