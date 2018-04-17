@@ -13,6 +13,7 @@ else:
 from argh import arg
 from collections import namedtuple
 from datetime import datetime
+import dateutil
 from fasteners.process_lock import interprocess_locked
 from multiprocessing import Process
 from os import path
@@ -158,7 +159,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
 
         if auto_update:
             trace('Token retrieval took {} seconds'.format(time.time() - started))
-            next_update = time.time() + 59 * 60
+            next_update = time.time() + validity - 60
             while time.time() < next_update:
                 counter = int((next_update - time.time()) // 60)
                 print('{} minutes till credential refresh\r'.format(counter), end='')
@@ -220,7 +221,7 @@ def update_creds_file(filename, profile, token):
     credentials.set(profile, 'aws_session_token', token['Credentials']['SessionToken'])
     credentials.set(profile, 'aws_security_token', token['Credentials']['SessionToken'])
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
-    credentials.set(profile, 'expiration', token['Credentials']['Expiration'])
+    credentials.set(profile, 'expiration', datetime.strftime(token['Credentials']['Expiration'], '%FT%TZ'))
 
     with open(filename, 'w+') as credsfile:
         credentials.write(credsfile)
