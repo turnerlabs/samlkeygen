@@ -264,6 +264,7 @@ def get_profile(filename, pattern, multi=False):
         return profiles[0]
 
 
+@interprocess_locked(LOCK_FILE)
 def load_profiles(filename, pattern):
     config = load_credentials(filename)
     regex = re.compile(pattern)
