@@ -10,7 +10,7 @@ if sys.version_info < (3, 0):
   from urlparse import urlparse
 else:
   import configparser
-  from urllib import parse as urlparse
+  from urllib.parse import urlparse
 
 
 from argh import arg
