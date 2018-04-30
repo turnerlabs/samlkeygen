@@ -7,8 +7,11 @@ import sys
 if sys.version_info < (3, 0):
   import ConfigParser as configparser
   input = raw_input
+  from urlparse import urlparse
 else:
   import configparser
+  from urllib import parse as urlparse
+
 
 from argh import arg
 from collections import namedtuple
@@ -17,7 +20,6 @@ import dateutil
 from fasteners.process_lock import interprocess_locked
 from multiprocessing import Process
 from os import path
-from urlparse import urlparse
 
 
 
