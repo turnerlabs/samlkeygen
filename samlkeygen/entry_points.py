@@ -7,16 +7,19 @@ import sys
 if sys.version_info < (3, 0):
   import ConfigParser as configparser
   input = raw_input
+  from urlparse import urlparse
 else:
   import configparser
+  from urllib.parse import urlparse
+
 
 from argh import arg
 from collections import namedtuple
 from datetime import datetime
+import dateutil
 from fasteners.process_lock import interprocess_locked
 from multiprocessing import Process
 from os import path
-from urlparse import urlparse
 
 
 
@@ -46,19 +49,20 @@ AssertionExpires = 0
 @arg('--region',       help='AWS region to use', default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
 @arg('--batch',        help='Disable all interactive prompts')
 @arg('--all-accounts', help='Retrieve tokens for all accounts and roles')
-@arg('--profile',      help='Naming pattern for profile names; %a=account alias, %r=role name (default %a:%r)')
+@arg('--profile',      help='Naming pattern for profile names; %%a=account alias, %%r=role name (default %%a:%%r)')
 @arg('--account',      help='Name or ID of AWS account for which to generate token')
 @arg('--role',         help='Name or ARN of role for which to generate token (default: all for account)')
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
-@arg('--auto-update',  help='Continue running and update token(s) every hour')
+@arg('--auto-update',  help='Continue running and update token(s) before they expire')
 @arg('--domain',       help='Windows domain to authenticate to', default=os.environ.get('ADFS_DOMAIN', ''))
 @arg('--username',     help='Name of user to authenticate as', default=getpass.getuser())
 @arg('--password',     help='Password for user', default=None)
 @arg('--verbose',      help='Display trace output', default=False)
+@arg('--duration',     help='Duration of token validity, in hours', default=9)
 def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'),
                  batch=False, all_accounts=False, account=None,
                  profile='%a:%r', domain=os.environ.get('ADFS_DOMAIN',''), role=None, username=os.environ.get('USER',''),
-                 password=None, filename=CREDS_FILE, auto_update=False, verbose=False):
+                 password=None, filename=CREDS_FILE, auto_update=False, verbose=False, duration=9):
     "Authenticate via SAML and write out temporary security tokens to the credentials file"
 
     if verbose:
@@ -139,6 +143,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
             die(msg)
 
     # we have a list of roles to get tokens for; go do it
+    validity = duration * 3600 # API wants seconds
     roles = set(roles)
     first = True
     while auto_update or first:
@@ -147,7 +152,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         started = time.time()
         for account_arn, role_arn in roles:
             trace('account_arn={}, role_arn={}'.format(account_arn, role_arn));
-            p = Process(target=authenticate_account_role, args=(filename, profile, account_arn, role_arn, saml_creds, saml_response, region))
+            p = Process(target=authenticate_account_role, args=(filename, profile, account_arn, role_arn, saml_creds, saml_response, region, validity))
             p.start()
             processes.append(p)
 
@@ -156,7 +161,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
 
         if auto_update:
             trace('Token retrieval took {} seconds'.format(time.time() - started))
-            next_update = time.time() + 59 * 60
+            next_update = time.time() + validity - 60
             while time.time() < next_update:
                 counter = int((next_update - time.time()) // 60)
                 print('{} minutes till credential refresh\r'.format(counter), end='')
@@ -218,11 +223,12 @@ def update_creds_file(filename, profile, token):
     credentials.set(profile, 'aws_session_token', token['Credentials']['SessionToken'])
     credentials.set(profile, 'aws_security_token', token['Credentials']['SessionToken'])
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
+    credentials.set(profile, 'expiration', datetime.strftime(token['Credentials']['Expiration'], '%FT%TZ'))
 
     with open(filename, 'w+') as credsfile:
         credentials.write(credsfile)
 
-def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, saml_response, region):
+def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, saml_response, region, validity):
     if role_arn is None:
         die('Unable to get credentials for null role ARN')
 
@@ -230,7 +236,7 @@ def authenticate_account_role(filename, profile_format, principal_arn, role_arn,
 
     if assertion_expired():
         saml_creds, saml_response = authorize(*saml_creds, batch=True)
-    token = get_sts_token(role_arn, principal_arn, saml_response, region)
+    token = get_sts_token(role_arn, principal_arn, saml_response, region, validity)
 
     if not token:
         die('Unable to get token for ({}, {})'.format(principal_arn, role_arn))
@@ -260,6 +266,7 @@ def get_profile(filename, pattern, multi=False):
         return profiles[0]
 
 
+@interprocess_locked(LOCK_FILE)
 def load_profiles(filename, pattern):
     config = load_credentials(filename)
     regex = re.compile(pattern)
@@ -404,10 +411,10 @@ def get_account_aliases(url, saml_response, form_action):
         AWS_Account_Aliases.append( { 'id':chunks[2].strip('()'), 'alias':chunks[1] } )
 
 # Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication
-def get_sts_token(role_arn, principal_arn, assertion, region):
+def get_sts_token(role_arn, principal_arn, assertion, region, validity=3600):
     client = boto3.client('sts', region_name = region)
     try:
-        token = client.assume_role_with_saml(RoleArn = role_arn, PrincipalArn = principal_arn, SAMLAssertion = assertion)
+        token = client.assume_role_with_saml(RoleArn = role_arn, PrincipalArn = principal_arn, SAMLAssertion = assertion, DurationSeconds = validity)
         return token
     except botocore.exceptions.ClientError as e:
         warn("Failed to get creds for {}: {}".format(role_arn, e))
