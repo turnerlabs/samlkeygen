@@ -152,9 +152,7 @@ $ awsrun shared-services-admin aws iam list-account-aliases
 
 ### Bash
 ```
-alias samld='docker run -it --rm -v "${AWS_DIR:-$HOME/.aws}:/aws" -e "USER=$USER" \
-             -e "ADFS_DOMAIN=$ADFS_DOMAIN" -e "ADFS_URL=$ADFS_URL" \
-             turnerlabs/samlkeygen authenticate --all-accounts --auto-update'
+alias samld='docker run -it --rm -v "${AWS_DIR:-$HOME/.aws}:/aws" -e "USER=$USER" -e "ADFS_DOMAIN=$ADFS_DOMAIN" -e "ADFS_URL=$ADFS_URL" turnerlabs/samlkeygen authenticate --all-accounts --auto-update'
 
 alias awsprofs='docker run --rm -v ~/.aws:/aws turnerlabs/samlkeygen list-profiles'
 
