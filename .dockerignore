@@ -1,0 +1,9 @@
+/.git
+/README.rst
+/__pycache__
+/dist
+/**/*.pyc
+/*.egg-info
+/.eggs
+/build
+/**/.*.swp
