@@ -12,22 +12,19 @@ else:
   import configparser
   from urllib.parse import urlparse
 
-
 from argh import arg
 from collections import namedtuple
 from datetime import datetime
-import dateutil
 from fasteners.process_lock import interprocess_locked
 from multiprocessing import Process
 from os import path
-
-
 
 import argh
 import base64
 import boto3
 import botocore
 import bs4
+import dateutil
 import getpass
 import os
 import re
@@ -74,7 +71,6 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     if all_accounts and (account or role):
         die('Specify --account/--role or --all-accounts, not both.')
 
-
     # check to see if url hostname resolves to 10 netwrok and assume VPN connection is up
     if not url:
             die('Pass ADFS URL via --url or set ADFS_URL in environment.')
@@ -97,7 +93,6 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         die('No password given for {}. Respond to prompt or specify via --password option.'.format(username))
 
     saml_creds, saml_response = authorize(url, domain, username, password, batch)
-
 
     roles = extract_roles(saml_response)
 
@@ -246,7 +241,6 @@ def authenticate_account_role(filename, profile_format, principal_arn, role_arn,
     print('Writing credentials for profile {}'.format(profile))
     update_creds_file(filename, profile, token)
 
-
 @arg('--filename',  help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('pattern', nargs='?', help='Restrict list to profiles matching pattern', default='.*')
 def list_profiles(pattern, filename=CREDS_FILE):
@@ -264,7 +258,6 @@ def get_profile(filename, pattern, multi=False):
         return profiles
     else:
         return profiles[0]
-
 
 @interprocess_locked(LOCK_FILE)
 def load_profiles(filename, pattern):
@@ -331,7 +324,6 @@ def extract_saml_assertion(url,response):
 def assertion_expired():
     global AssertionExpires
     return int( time.time() ) >= AssertionExpires
-
 
 def ntlm_authenticate(url, domain, username, password, batch=False, sslverification=True):
 
@@ -421,13 +413,23 @@ def get_sts_token(role_arn, principal_arn, assertion, region, validity=3600):
         return None
 
 def get_account_alias(token):
+    global AWS_Account_Aliases
     account_id = token['AssumedRoleUser']['Arn'].split(":")[4]
     for acct in AWS_Account_Aliases:
         if acct['id'] == account_id:
             return acct['alias']
 
-    warn("Failed to get account alias for {}".format(token['AssumedRoleUser']['Arn']))
-    return token['AssumedRoleUser']['Arn'].split(":")[4] # The account Number
+    # not found in list, probably a single-role account who didn't get the
+    # role-selection form; get alias via IAM
+    try:
+        client = boto3.client('iam',
+                              aws_access_key_id=token['Credentials']['AccessKeyId'],
+                              aws_secret_access_key=token['Credentials']['SecretAccessKey'],
+                              aws_session_token=token['Credentials']['SessionToken'])
+        return client.list_account_aliases()['AccountAliases'][0]
+    except Exception as e:
+        warn("Failed to get account alias for {}".format(token['AssumedRoleUser']['Arn']))
+        return token['AssumedRoleUser']['Arn'].split(":")[4] # The account Number
 
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('pattern', help='Run command with profile matching pattern')
