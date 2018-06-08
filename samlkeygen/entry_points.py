@@ -404,6 +404,11 @@ def get_account_aliases(url, saml_response, form_action):
 
 # Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication
 def get_sts_token(role_arn, principal_arn, assertion, region, validity=3600):
+    # boto3.client() will try to authenticate if it looks like it has
+    # the necessary credentials, so make sure it doesn't.
+    aws_keys = [k for k in os.environ if k.startswith('AWS_')]
+    for k in aws_keys:
+        del os.environ[k]
     client = boto3.client('sts', region_name = region)
     try:
         token = client.assume_role_with_saml(RoleArn = role_arn, PrincipalArn = principal_arn, SAMLAssertion = assertion, DurationSeconds = validity)
