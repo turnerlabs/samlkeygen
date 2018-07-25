@@ -84,7 +84,7 @@ Writing credentials for profile cdubs:aws-cdubs-admin
 58 minutes till credential refresh
 ```
 
-The full usage for `samlgen authenticate` may be found below.
+The full usage for `samlkeygen authenticate` may be found below.
 
 ### Profile selection
 
