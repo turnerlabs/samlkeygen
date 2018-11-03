@@ -279,11 +279,7 @@ def load_profiles(filename, pattern):
 def load_credentials(filename, force_refresh=False):
     if (force_refresh or not load_credentials.config or filename != load_credentials.filename):
         load_credentials.config = configparser.RawConfigParser()
-        # even with the flush/sync calls, we sometimes get an incomplete file;
-        # if the parse fails, try again a couple times before giving up
-        #try:
         load_credentials.config.read(filename)
-        #except 
     return load_credentials.config
 load_credentials.config = None
 load_credentials.filename = None
