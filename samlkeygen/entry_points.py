@@ -229,7 +229,7 @@ def update_creds_file(filename, profile, token):
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     credentials.set(profile, 'expiration', datetime.strftime(token['Credentials']['Expiration'], '%FT%TZ'))
 
-    with open(TEMP_FILE, 'w') as credsfile:
+    with open(filename, 'w') as credsfile:
         credentials.write(credsfile)
         credsfile.flush()
         os.fsync(credsfile.fileno())
