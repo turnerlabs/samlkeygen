@@ -30,6 +30,7 @@ import os
 import re
 import requests
 import requests_ntlm
+import shutil
 import subprocess
 import time
 import xml.etree.ElementTree
@@ -38,6 +39,7 @@ import socket
 # this will move if running under Docker
 AWS_DIR = os.environ.get('AWS_DIR', path.expanduser('~/.aws'))
 CREDS_FILE = path.join(AWS_DIR, 'credentials')
+TEMP_FILE = CREDS_FILE + '.tmp'
 LOCK_FILE = CREDS_FILE + '.lck'
 AWS_Account_Aliases = []
 AssertionExpires = 0
@@ -142,17 +144,23 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     roles = set(roles)
     first = True
     while auto_update or first:
+        try:
+            shutil.copyfile(filename, TEMP_FILE)
+        except FileNotFoundError:
+            pass
         first = False
         processes = []
         started = time.time()
         for account_arn, role_arn in roles:
             trace('account_arn={}, role_arn={}'.format(account_arn, role_arn));
-            p = Process(target=authenticate_account_role, args=(filename, profile, account_arn, role_arn, saml_creds, saml_response, region, validity))
+            p = Process(target=authenticate_account_role, args=(TEMP_FILE, profile, account_arn, role_arn, saml_creds, saml_response, region, validity))
             p.start()
             processes.append(p)
 
         for p in processes:
             p.join()
+
+        os.rename(TEMP_FILE, filename)
 
         if auto_update:
             trace('Token retrieval took {} seconds'.format(time.time() - started))
@@ -210,6 +218,7 @@ def update_creds_file(filename, profile, token):
     # load the current credentials; existing contents for other profiles will
     # be left intact.
     credentials = load_credentials(filename, True)
+
     if not credentials.has_section(profile):
         credentials.add_section(profile)
 
@@ -220,8 +229,10 @@ def update_creds_file(filename, profile, token):
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     credentials.set(profile, 'expiration', datetime.strftime(token['Credentials']['Expiration'], '%FT%TZ'))
 
-    with open(filename, 'w') as credsfile:
+    with open(TEMP_FILE, 'w') as credsfile:
         credentials.write(credsfile)
+        credsfile.flush()
+        os.fsync(credsfile.fileno())
 
 def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, saml_response, region, validity):
     if role_arn is None:
@@ -268,7 +279,11 @@ def load_profiles(filename, pattern):
 def load_credentials(filename, force_refresh=False):
     if (force_refresh or not load_credentials.config or filename != load_credentials.filename):
         load_credentials.config = configparser.RawConfigParser()
+        # even with the flush/sync calls, we sometimes get an incomplete file;
+        # if the parse fails, try again a couple times before giving up
+        #try:
         load_credentials.config.read(filename)
+        #except 
     return load_credentials.config
 load_credentials.config = None
 load_credentials.filename = None
@@ -404,7 +419,12 @@ def get_account_aliases(url, saml_response, form_action):
 
 # Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication
 def get_sts_token(role_arn, principal_arn, assertion, region, validity=3600):
-    client = boto3.client('sts', region_name = region)
+    # make sure the STS client request doesn't try to load our creds file
+    bs = botocore.session.get_session({ 'profile': ( None, ['', ''], None, None ),
+                                        'config_file': (None, '', '', None) })
+    bs.set_credentials('','','')
+    s = boto3.session.Session(botocore_session = bs)
+    client = s.client('sts', region_name = region)
     try:
         token = client.assume_role_with_saml(RoleArn = role_arn, PrincipalArn = principal_arn, SAMLAssertion = assertion, DurationSeconds = validity)
         return token
