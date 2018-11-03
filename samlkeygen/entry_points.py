@@ -415,7 +415,7 @@ def get_account_aliases(url, saml_response, form_action):
 
 # Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication
 def get_sts_token(role_arn, principal_arn, assertion, region, validity=3600):
-    # make sure the STS client request doesn't try to load our creds file
+    # make sure the STS client request doesn't try to use our current AWS_PROFILE
     bs = botocore.session.get_session({ 'profile': ( None, ['', ''], None, None ),
                                         'config_file': (None, '', '', None) })
     bs.set_credentials('','','')
