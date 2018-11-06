@@ -146,7 +146,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     while auto_update or first:
         try:
             shutil.copyfile(filename, TEMP_FILE)
-        except FileNotFoundError:
+        except IOError:
             pass
         first = False
         processes = []
