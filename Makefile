@@ -13,3 +13,13 @@ clean:
 
 test:
 	bash ./run-tests.sh
+
+docker:
+	docker build -t samlkeygen:$(VERSION) .
+
+tag: docker
+	docker tag samlkeygen:$(VERSION) samlkeygen:latest
+
+push: tag
+	docker push samlkeygen:$(VERSION) turnerlabs/samlkeygen:$(VERSION)
+	docker tag turnerlabs/samlkeygen:$(VERSION) turnerlabs/samlkeygen:latest
