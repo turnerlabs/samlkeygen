@@ -32,6 +32,7 @@ import requests
 import requests_ntlm
 import shutil
 import subprocess
+import tempfile
 import time
 import xml.etree.ElementTree
 import socket
@@ -150,17 +151,24 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
             pass
         first = False
         processes = []
+        files = []
         started = time.time()
         for account_arn, role_arn in roles:
             trace('account_arn={}, role_arn={}'.format(account_arn, role_arn));
-            p = Process(target=authenticate_account_role, args=(TEMP_FILE, profile, account_arn, role_arn, saml_creds, saml_response, region, validity))
+            (fd, temp_file) = tempfile.mkstemp(text=True)
+            os.close(fd)
+            files.append(temp_file)
+            p = Process(target=authenticate_account_role, args=(temp_file, profile, account_arn, role_arn, saml_creds, saml_response, region, validity))
             p.start()
             processes.append(p)
 
         for p in processes:
             p.join()
 
+        merge_ini_files(files, TEMP_FILE)
         os.rename(TEMP_FILE, filename)
+        for f in files:
+            os.remove(f)
 
         if auto_update:
             trace('Token retrieval took {} seconds'.format(time.time() - started))
@@ -170,6 +178,21 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
                 print('{} minutes till credential refresh\r'.format(counter), end='')
                 sys.stdout.flush()
                 time.sleep(60)
+
+def merge_ini_files(source_files, target_file):
+    target = configparser.RawConfigParser()
+    target.read(target_file)
+    for file in source_files:
+        source = configparser.RawConfigParser()
+        source.read(target_file)
+        for sect in source.sections():
+            if not target.has_section(sect):
+                target.add_section(sect)
+            for (key, value) in source.items(sect):
+                target.set(sect, key, value)
+    with open(target_file, 'wt') as f:
+        target.write(f)
+
 
 def samld():
     sys.argv[1:1] = ['authenticate', '--all-accounts', '--auto-update']
@@ -213,9 +236,8 @@ def get_role_name(role_arn):
     "Extract role name from ARN to friendly name"
     return role_arn.split(':')[5].replace('role/', '')
 
-@interprocess_locked(LOCK_FILE)
-def update_creds_file(filename, profile, token):
-    # load the current credentials; existing contents for other profiles will
+def write_creds_file(filename, profile, token):
+    # write a temporary file with the credentials for the given profile name
     # be left intact.
     credentials = load_credentials(filename, True)
 
@@ -229,10 +251,10 @@ def update_creds_file(filename, profile, token):
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     credentials.set(profile, 'expiration', datetime.strftime(token['Credentials']['Expiration'], '%FT%TZ'))
 
-    with open(filename, 'w') as credsfile:
+    with open(filename, 'wt') as credsfile:
         credentials.write(credsfile)
         credsfile.flush()
-        os.fsync(credsfile.fileno())
+        os.fsync(credsfile)
 
 def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, saml_response, region, validity):
     if role_arn is None:
@@ -250,7 +272,7 @@ def authenticate_account_role(filename, profile_format, principal_arn, role_arn,
     role_name = get_role_name(role_arn)
     profile = profile_format.replace('%a', account_name).replace('%r', role_name)
     print('Writing credentials for profile {}'.format(profile))
-    update_creds_file(filename, profile, token)
+    write_creds_file(filename, profile, token)
 
 @arg('--filename',  help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('pattern', nargs='?', help='Restrict list to profiles matching pattern', default='.*')
@@ -270,7 +292,6 @@ def get_profile(filename, pattern, multi=False):
     else:
         return profiles[0]
 
-@interprocess_locked(LOCK_FILE)
 def load_profiles(filename, pattern):
     config = load_credentials(filename)
     regex = re.compile(pattern)
