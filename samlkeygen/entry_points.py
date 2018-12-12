@@ -182,9 +182,9 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
 def merge_ini_files(source_files, target_file):
     target = configparser.RawConfigParser()
     target.read(target_file)
-    for file in source_files:
+    for source_file in source_files:
         source = configparser.RawConfigParser()
-        source.read(target_file)
+        source.read(source_file)
         for sect in source.sections():
             if not target.has_section(sect):
                 target.add_section(sect)
