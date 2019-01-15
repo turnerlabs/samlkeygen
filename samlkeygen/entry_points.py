@@ -166,7 +166,15 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
             p.join()
 
         merge_ini_files(files, TEMP_FILE)
-        os.rename(TEMP_FILE, filename)
+        try:
+          os.rename(TEMP_FILE, filename)
+        except FileExistsError:
+          if sys.version_info >= (3,3):
+            os.replace(TEMP_FILE, filename)
+          else:
+            os.remove(filename)
+            os.rename(TEMP_FILE, filename)
+
         for f in files:
             os.remove(f)
 
