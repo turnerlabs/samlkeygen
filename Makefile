@@ -22,4 +22,6 @@ tag: docker
 
 push: tag
 	docker tag samlkeygen:$(VERSION) turnerlabs/samlkeygen:$(VERSION)
-	docker push turnerlabs/samlkeygen:$(VERSION) turnerlabs/samlkeygen:latest
+	docker tag samlkeygen:latest turnerlabs/samlkeygen:latest
+	docker push turnerlabs/samlkeygen:$(VERSION)
+	docker push turnerlabs/samlkeygen:latest
