@@ -14,12 +14,17 @@ clean:
 test:
 	bash ./run-tests.sh
 
-docker:
+docker: Dockerfile samlkeygen/*.py
 	docker build -t samlkeygen:$(VERSION) .
+	touch docker
 
 tag: docker
 	docker tag samlkeygen:$(VERSION) samlkeygen:latest
+	touch tag
 
 push: tag
-	docker push samlkeygen:$(VERSION) turnerlabs/samlkeygen:$(VERSION)
-	docker tag turnerlabs/samlkeygen:$(VERSION) turnerlabs/samlkeygen:latest
+	docker tag samlkeygen:$(VERSION) turnerlabs/samlkeygen:$(VERSION)
+	docker tag samlkeygen:latest turnerlabs/samlkeygen:latest
+	docker push turnerlabs/samlkeygen:$(VERSION)
+	docker push turnerlabs/samlkeygen:latest
+	touch push

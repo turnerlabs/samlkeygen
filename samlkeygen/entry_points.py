@@ -440,7 +440,8 @@ def get_account_aliases(url, saml_response, form_action):
     soup = bs4.BeautifulSoup( awsr.text, "html.parser")
     for divs in soup.find_all( 'div', { "class": "saml-account-name" } ):
         chunks = divs.text.split( ' ' )
-        AWS_Account_Aliases.append( { 'id':chunks[2].strip('()'), 'alias':chunks[1] } )
+        if len(chunks) > 2:
+          AWS_Account_Aliases.append( { 'id':chunks[2].strip('()'), 'alias':chunks[1] } )
 
 # Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication
 def get_sts_token(role_arn, principal_arn, assertion, region, validity=3600):
