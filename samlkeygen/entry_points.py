@@ -156,7 +156,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         started = time.time()
         for account_arn, role_arn in roles:
 
-            if len(processes) > MaxProcesses:
+            if len(processes) >= MaxProcesses:
                  processes[0].join()
                  del processes[0]
 
