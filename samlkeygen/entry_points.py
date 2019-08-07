@@ -44,6 +44,7 @@ TEMP_FILE = CREDS_FILE + '.tmp'
 LOCK_FILE = CREDS_FILE + '.lck'
 AWS_Account_Aliases = []
 AssertionExpires = 0
+MaxProcesses = 20
 
 @arg('--url',          help='URL to ADFS provider', default=os.environ.get('ADFS_URL', ''))
 @arg('--region',       help='AWS region to use', default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
@@ -154,6 +155,11 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         files = []
         started = time.time()
         for account_arn, role_arn in roles:
+
+            if len(processes) >= MaxProcesses:
+                 processes[0].join()
+                 del processes[0]
+
             trace('account_arn={}, role_arn={}'.format(account_arn, role_arn));
             (fd, temp_file) = tempfile.mkstemp(text=True)
             os.close(fd)
