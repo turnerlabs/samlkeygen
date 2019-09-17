@@ -213,7 +213,7 @@ optional arguments:
                        account:role) (default: -)
   --domain DOMAIN      Windows domain to authenticate to (default: '')
   --role ROLE          Name or ARN of role for which to generate token
-                       (default: all for account) (default: -)
+                       (default: all for accounts) (default: -)
   --username USERNAME  Name of user to authenticate as (default: 'mjreed')
   --password PASSWORD  Password for user (default: -)
   --filename FILENAME  Name of AWS credentials file (default:
