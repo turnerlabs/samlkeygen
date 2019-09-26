@@ -72,10 +72,10 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     if not (all_accounts or account):
         die('Need --account or --all-accounts')
 
-    if all_accounts and (account or role):
-        die('Specify --account/--role or --all-accounts, not both.')
+    if all_accounts and account:
+        die('Specify --account or --all-accounts, not both.')
 
-    # check to see if url hostname resolves to 10 netwrok and assume VPN connection is up
+    # check to see if url hostname resolves to 10 network and assume VPN connection is up
     if not url:
             die('Pass ADFS URL via --url or set ADFS_URL in environment.')
 
