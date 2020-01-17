@@ -44,6 +44,7 @@ TEMP_FILE = CREDS_FILE + '.tmp'
 LOCK_FILE = CREDS_FILE + '.lck'
 AWS_Account_Aliases = []
 AssertionExpires = 0
+MaxProcesses = 20
 
 @arg('--url',          help='URL to ADFS provider', default=os.environ.get('ADFS_URL', ''))
 @arg('--region',       help='AWS region to use', default=os.environ.get('AWS_DEFAULT_REGION', 'us-east-1'))
@@ -71,10 +72,10 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     if not (all_accounts or account):
         die('Need --account or --all-accounts')
 
-    if all_accounts and (account or role):
-        die('Specify --account/--role or --all-accounts, not both.')
+    if all_accounts and account:
+        die('Specify --account or --all-accounts, not both.')
 
-    # check to see if url hostname resolves to 10 netwrok and assume VPN connection is up
+    # check to see if url hostname resolves to 10 network and assume VPN connection is up
     if not url:
             die('Pass ADFS URL via --url or set ADFS_URL in environment.')
 
@@ -156,6 +157,11 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         files = []
         started = time.time()
         for account_arn, role_arn in roles:
+
+            if len(processes) >= MaxProcesses:
+                 processes[0].join()
+                 del processes[0]
+
             trace('account_arn={}, role_arn={}'.format(account_arn, role_arn));
             (fd, temp_file) = tempfile.mkstemp(text=True)
             os.close(fd)
@@ -442,7 +448,8 @@ def get_account_aliases(url, saml_response, form_action):
     soup = bs4.BeautifulSoup( awsr.text, "html.parser")
     for divs in soup.find_all( 'div', { "class": "saml-account-name" } ):
         chunks = divs.text.split( ' ' )
-        AWS_Account_Aliases.append( { 'id':chunks[2].strip('()'), 'alias':chunks[1] } )
+        if len(chunks) > 2:
+          AWS_Account_Aliases.append( { 'id':chunks[2].strip('()'), 'alias':chunks[1] } )
 
 # Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication
 def get_sts_token(role_arn, principal_arn, assertion, region, validity=3600):
