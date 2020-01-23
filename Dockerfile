@@ -1,12 +1,12 @@
-FROM alpine:3.10.1
+FROM alpine:3.11.3
 
-RUN apk --update add --no-cache python3=3.7.3-r0 bash libffi openssl
+RUN apk --update add --no-cache python3=3.8.1-r0 bash libffi openssl
 
 COPY . /usr/src/app
 WORKDIR /usr/src/app
 
 RUN apk --update add --no-cache --virtual .build-deps \
-    python3-dev=3.7.3-r0 gcc musl-dev libffi-dev openssl-dev && \
+    python3-dev=3.8.1-r0 gcc musl-dev libffi-dev openssl-dev && \
     python3 -m ensurepip && \
     pip3 --no-cache-dir install --upgrade pip setuptools && \
     pip3 --no-cache-dir install . && \
