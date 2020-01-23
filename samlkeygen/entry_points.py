@@ -116,6 +116,8 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
                 break
         # no easy find on account id, have to actually fetch account aliases:
         if not account_arn:
+            if account_id:
+                raise LookupError('no profile found matching account id "{}"'.format(account_id))
             for principal_arn, role_arn in roles:
                 account_name = get_account_name(principal_arn, saml_response, role_arn, region)
                 if regex.search(account_name):
