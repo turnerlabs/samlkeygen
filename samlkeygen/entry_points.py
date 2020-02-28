@@ -108,7 +108,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         except ValueError:
             account_id = None
         if account_id:
-            account = 'arn:aws:iam::{}'.format(account_id)
+            account = f'arn:aws:iam::{account_id:012}'
         regex = re.compile(account)
         for principal_arn, role_arn in roles:
             if regex.search(principal_arn):
