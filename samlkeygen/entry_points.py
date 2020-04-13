@@ -344,7 +344,12 @@ def tracing():
     return os.environ.get('SAMLAUTH_DEBUG', 'false').lower() == 'true'
 
 def format_domain_username(domain, username):
-    return('{}\\{}'.format(domain, username))
+    if '@' in username:
+        return username
+    elif '.' in domain:
+        return f'{username}@{domain}'
+    else:
+        return f'{domain}\\{username}'
 
 def extract_saml_assertion(url,response):
     global AssertionExpires
