@@ -1,5 +1,5 @@
-PYTHON=python2
-PIP=pip2
+PYTHON=python3
+PIP=pip3
 VERSION=$(shell $(PYTHON) -msamlkeygen._version)
 
 dist/samlkeygen-$(VERSION): *.py README.rst
