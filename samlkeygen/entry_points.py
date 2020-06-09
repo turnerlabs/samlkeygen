@@ -51,7 +51,7 @@ MaxProcesses = 20
 @arg('--batch',        help='Disable all interactive prompts')
 @arg('--all-accounts', help='Retrieve tokens for all accounts and roles')
 @arg('--profile',      help='Naming pattern for profile names; %%a=account alias, %%r=role name (default %%a:%%r)')
-@arg('--accounts',     help='Name(s) or ID(s) of AWS account(s) for which to generate tokens', nargs='*')
+@arg('--accounts',     help='Name(s) or ID(s) of AWS account(s) for which to generate tokens', nargs='+')
 @arg('--role',         help='Name or ARN of role for which to generate token (default: all for account)')
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('--auto-update',  help='Continue running and update token(s) before they expire')
