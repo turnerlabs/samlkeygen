@@ -1,6 +1,6 @@
 PYTHON=python3
 PIP=pip3
-VERSION=$(shell $(PYTHON) -msamlkeygen._version)
+VERSION=$(shell $(PYTHON) -msamlkeygen version)
 
 dist/samlkeygen-$(VERSION): *.py README.rst
 	$(PYTHON) setup.py sdist
