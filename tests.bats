@@ -63,9 +63,10 @@ fi
    sleep 15
    kill $pid
    wait $pid 2>/dev/null || true
-   [[ $(tail -n 1 "$tmpfile") == *credential*refresh* ]]
-   result=$?
-   cat "$tmpfile"
-   rm -f "$tmpfile"
-   return $result
+   if [[ $(tail -n 1 "$tmpfile") == *credential*refresh* ]]; then
+     rm -f "$tmpfile"
+     return 0
+   else
+     return $?
+   fi
 }
