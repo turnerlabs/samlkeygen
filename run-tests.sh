@@ -6,18 +6,18 @@ if [[ -z $ADFS_PASSWORD ]]; then
     printf >&2 '\n'
 fi
 if [[ -z $TEST_ACCOUNT ]]; then
-    read -p 'Account name for tests: ' TEST_ACCOUNT
+    read -p 'AWS account name for tests: ' TEST_ACCOUNT
 fi
 if [[ -z $TEST_ROLE ]]; then
-    read -p 'Role name for tests: ' TEST_ROLE
+    read -p 'IAM role name for tests: ' TEST_ROLE
 fi
 TEST_ROOT=/tmp/samlkeygen-tests-$$
 mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/aws"
 AWS_DIR=$TEST_ROOT/aws
 AWS_SHARED_CREDENTIALS_FILE=$AWS_DIR/credentials
-pip install --ignore-installed --install-option="--prefix=$TEST_ROOT" .
+pip install --ignore-installed --prefix="$TEST_ROOT" . awscli
 PATH=$TEST_ROOT/bin:$PATH
-PYTHONPATH=$TEST_ROOT/lib/python2.7/site-packages
+export PYTHONPATH=$(echo "$TEST_ROOT"/lib/python*/site-packages)
 if ./tests.bats; then
     # all tests succeeded
     rm -rf "$TEST_ROOT"

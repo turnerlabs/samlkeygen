@@ -10,7 +10,7 @@ fi
 }
 
 @test "usage 1: requires subcommand"  {
-   [[ $(python -msamlkeygen 2>&1 | tail -n 1) == 'samlkeygen: error: too few arguments' ]]
+   [[ $(python -msamlkeygen 2>&1) == 'usage: samlkeygen '* ]]
 }
 
 @test "usage 2: authenticate requires account"  {
