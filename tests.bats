@@ -13,12 +13,16 @@ fi
    [[ $(python -msamlkeygen 2>&1) == 'usage: samlkeygen '* ]]
 }
 
-@test "usage 2: authenticate requires account"  {
-   [[ $(python -msamlkeygen authenticate 2>&1 | tail -n 1) == 'samlkeygen: Need --account or --all-accounts' ]]
+@test "usage 2: authenticate requires accounts"  {
+   [[ $(python -msamlkeygen authenticate 2>&1 | tail -n 1) == 'samlkeygen: Need --accounts or --all-accounts' ]]
 }
 
-@test "authenticate --account doesn't crash"  {
-   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --password "$ADFS_PASSWORD" >&/dev/null
+@test "authenticate --accounts doesn't crash"  {
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" --password "$ADFS_PASSWORD" >&/dev/null
+}
+
+@test "authenticate --accounts takes multiple accounts"  {
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" "$TEST_ACCOUNT2" --password "$ADFS_PASSWORD" >&/dev/null
 }
 
 @test "format in --profile works"  {
@@ -61,6 +65,7 @@ fi
    wait $pid 2>/dev/null || true
    [[ $(tail -n 1 "$tmpfile") == *credential*refresh* ]]
    result=$?
+   cat "$tmpfile"
    rm -f "$tmpfile"
    return $result
 }

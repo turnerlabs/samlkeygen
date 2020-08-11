@@ -8,6 +8,9 @@ fi
 if [[ -z $TEST_ACCOUNT ]]; then
     read -p 'AWS account name for tests: ' TEST_ACCOUNT
 fi
+if [[ -z $TEST_ACCOUNT2 ]]; then
+    read -p 'Another AWS account name for tests: ' TEST_ACCOUNT2
+fi
 if [[ -z $TEST_ROLE ]]; then
     read -p 'IAM role name for tests: ' TEST_ROLE
 fi
