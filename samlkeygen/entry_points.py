@@ -101,6 +101,8 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     roles = all_roles = extract_roles(saml_response)
     if accounts:
         roles = []
+    else:
+        accounts = []    # set to empty list instead of None if unspecified
 
     # if account is specified, look for it as an existing profile first
     for account in accounts:
