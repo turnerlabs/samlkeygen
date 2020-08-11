@@ -166,7 +166,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
             (fd, temp_file) = tempfile.mkstemp(text=True)
             os.close(fd)
             files.append(temp_file)
-            p = Process(target=authenticate_account_role, args=(temp_file, profile, account_arn, role_arn, saml_creds, saml_response, region, validity))
+            p = Process(target=authenticate_account_role, args=(temp_file, profile, account_arn, role_arn, saml_creds, saml_response, region, validity, AssertionExpires))
             p.start()
             processes.append(p)
 
@@ -272,7 +272,9 @@ def write_creds_file(filename, profile, token):
         credsfile.flush()
         os.fsync(credsfile)
 
-def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, saml_response, region, validity):
+def authenticate_account_role(filename, profile_format, principal_arn, role_arn, saml_creds, saml_response, region, validity, assertion_expires):
+    global AssertionExpires
+    AssertionExpires = assertion_expires
     if role_arn is None:
         die('Unable to get credentials for null role ARN')
 
