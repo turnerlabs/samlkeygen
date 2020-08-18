@@ -13,16 +13,20 @@ fi
    [[ $(python -msamlkeygen 2>&1) == 'usage: samlkeygen '* ]]
 }
 
-@test "usage 2: authenticate requires account"  {
-   [[ $(python -msamlkeygen authenticate 2>&1 | tail -n 1) == 'samlkeygen: Need --account or --all-accounts' ]]
+@test "usage 2: authenticate requires accounts"  {
+   [[ $(python -msamlkeygen authenticate 2>&1 | tail -n 1) == 'samlkeygen: Need --accounts or --all-accounts' ]]
 }
 
-@test "authenticate --account doesn't crash"  {
-   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --password "$ADFS_PASSWORD" >&/dev/null
+@test "authenticate --accounts doesn't crash"  {
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" --password "$ADFS_PASSWORD" 
+}
+
+@test "authenticate --accounts takes multiple accounts"  {
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" "$TEST_ACCOUNT2" --password "$ADFS_PASSWORD" 
 }
 
 @test "format in --profile works"  {
-   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --role "$TEST_ROLE" --profile '%r' --password "$ADFS_PASSWORD" >&/dev/null
+   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --role "$TEST_ROLE" --profile '%r' --password "$ADFS_PASSWORD" 
    grep -q "^\[$TEST_ROLE\]" "$AWS_DIR"/credentials
 }
 
@@ -52,15 +56,24 @@ fi
 }
 
 @test "samld entry point works"  {
-   local pid result tmpfile
+   local pid result tmpfile wait_time
    tmpfile=$TEST_ROOT/samld$$.out
    (samld --password "$ADFS_PASSWORD") > "$tmpfile" 2>&1 &
    pid=$!
-   sleep 15
+   wait_time=15
+   if [[ -r ~/.aws/credentials ]]; then
+     local count=$(grep -c '^\[' ~/.aws/credentials)
+     if (( count > 25 )); then
+        (( wait_time = 2 * count / 3 + 1))
+     fi
+   fi
+   sleep $wait_time
    kill $pid
    wait $pid 2>/dev/null || true
-   [[ $(tail -n 1 "$tmpfile") == *credential*refresh* ]]
-   result=$?
-   rm -f "$tmpfile"
-   return $result
+   if [[ $(tail -n 1 "$tmpfile") == *credential*refresh* ]]; then
+     rm -f "$tmpfile"
+     return 0
+   else
+     return $?
+   fi
 }

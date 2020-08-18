@@ -51,17 +51,17 @@ MaxProcesses = 20
 @arg('--batch',        help='Disable all interactive prompts')
 @arg('--all-accounts', help='Retrieve tokens for all accounts and roles')
 @arg('--profile',      help='Naming pattern for profile names; %%a=account alias, %%r=role name (default %%a:%%r)')
-@arg('--account',      help='Name or ID of AWS account for which to generate token')
+@arg('--accounts',     help='Name(s) or ID(s) of AWS account(s) for which to generate tokens', nargs='+')
 @arg('--role',         help='Name or ARN of role for which to generate token (default: all for account)')
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('--auto-update',  help='Continue running and update token(s) before they expire')
 @arg('--domain',       help='Windows domain to authenticate to', default=os.environ.get('ADFS_DOMAIN', ''))
 @arg('--username',     help='Name of user to authenticate as', default=getpass.getuser())
-@arg('--password',     help='Password for user', default=None)
+@arg('--password',     help='Password for user', default=os.environ.get('ADFS_PASSWORD', None))
 @arg('--verbose',      help='Display trace output', default=False)
 @arg('--duration',     help='Duration of token validity, in hours', default=9)
 def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'),
-                 batch=False, all_accounts=False, account=None,
+                 batch=False, all_accounts=False, accounts=None,
                  profile='%a:%r', domain=os.environ.get('ADFS_DOMAIN',''), role=None, username=os.environ.get('USER',''),
                  password=None, filename=CREDS_FILE, auto_update=False, verbose=False, duration=9):
     "Authenticate via SAML and write out temporary security tokens to the credentials file"
@@ -69,11 +69,11 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
     if verbose:
         trace_on()
 
-    if not (all_accounts or account):
-        die('Need --account or --all-accounts')
+    if not (all_accounts or accounts):
+        die('Need --accounts or --all-accounts')
 
-    if all_accounts and account:
-        die('Specify --account or --all-accounts, not both.')
+    if all_accounts and accounts:
+        die('Specify --accounts or --all-accounts, not both.')
 
     # check to see if url hostname resolves to 10 network and assume VPN connection is up
     if not url:
@@ -98,11 +98,17 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
 
     saml_creds, saml_response = authorize(url, domain, username, password, batch)
 
-    roles = extract_roles(saml_response)
+    roles = all_roles = extract_roles(saml_response)
+    if accounts:
+        roles = []
+    else:
+        accounts = []    # set to empty list instead of None if unspecified
 
-    # if account is specified, look for it as an existing profile first
-    account_arn = None
-    if account:
+    # if accounts specified, look for existing profiles first
+    for account in accounts:
+      account_arn = None
+      found_roles = []
+      if account:
         try:
             account_id = int(account)
         except ValueError:
@@ -110,7 +116,7 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         if account_id:
             account = f'arn:aws:iam::{account_id:012}'
         regex = re.compile(account)
-        for principal_arn, role_arn in roles:
+        for principal_arn, role_arn in all_roles:
             if regex.search(principal_arn):
                 account_arn = principal_arn
                 break
@@ -118,17 +124,19 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
         if not account_arn:
             if account_id:
                 raise LookupError('no profile found matching account id "{:012}"'.format(account_id))
-            for principal_arn, role_arn in roles:
+            for principal_arn, role_arn in all_roles:
                 account_name = get_account_name(principal_arn, saml_response, role_arn, region)
                 if regex.search(account_name):
                     account_arn = principal_arn
                     break
 
-    if account_arn:
-        roles = [r for r in roles if r[0] == account_arn]
+      if account_arn:
+        found_roles = [r for r in all_roles if r[0] == account_arn]
 
-    if account_arn and not roles:
+      if account_arn and not found_roles:
         die('Account {} not found.'.format(account))
+
+      roles += found_roles
 
     # if a role is specified, find it
     if role:
