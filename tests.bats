@@ -18,15 +18,15 @@ fi
 }
 
 @test "authenticate --accounts doesn't crash"  {
-   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" --password "$ADFS_PASSWORD" >&/dev/null
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" --password "$ADFS_PASSWORD" 
 }
 
 @test "authenticate --accounts takes multiple accounts"  {
-   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" "$TEST_ACCOUNT2" --password "$ADFS_PASSWORD" >&/dev/null
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" "$TEST_ACCOUNT2" --password "$ADFS_PASSWORD" 
 }
 
 @test "format in --profile works"  {
-   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --role "$TEST_ROLE" --profile '%r' --password "$ADFS_PASSWORD" >&/dev/null
+   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --role "$TEST_ROLE" --profile '%r' --password "$ADFS_PASSWORD" 
    grep -q "^\[$TEST_ROLE\]" "$AWS_DIR"/credentials
 }
 
@@ -56,11 +56,18 @@ fi
 }
 
 @test "samld entry point works"  {
-   local pid result tmpfile
+   local pid result tmpfile wait_time
    tmpfile=$TEST_ROOT/samld$$.out
    (samld --password "$ADFS_PASSWORD") > "$tmpfile" 2>&1 &
    pid=$!
-   sleep 15
+   wait_time=15
+   if [[ -r ~/.aws/credentials ]]; then
+     local count=$(grep -c '^\[' ~/.aws/credentials)
+     if (( count > 25 )); then
+        (( wait_time = 2 * count / 3 + 1))
+     fi
+   fi
+   sleep $wait_time
    kill $pid
    wait $pid 2>/dev/null || true
    if [[ $(tail -n 1 "$tmpfile") == *credential*refresh* ]]; then
