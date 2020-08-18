@@ -57,7 +57,7 @@ MaxProcesses = 20
 @arg('--auto-update',  help='Continue running and update token(s) before they expire')
 @arg('--domain',       help='Windows domain to authenticate to', default=os.environ.get('ADFS_DOMAIN', ''))
 @arg('--username',     help='Name of user to authenticate as', default=getpass.getuser())
-@arg('--password',     help='Password for user', default=None)
+@arg('--password',     help='Password for user', default=os.environ.get('ADFS_PASSWORD', None))
 @arg('--verbose',      help='Display trace output', default=False)
 @arg('--duration',     help='Duration of token validity, in hours', default=9)
 def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_DEFAULT_REGION','us-east-1'),
