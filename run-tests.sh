@@ -20,8 +20,8 @@ TEST_ROOT=/tmp/samlkeygen-tests-$$
 mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/aws"
 AWS_DIR=$TEST_ROOT/aws
 AWS_SHARED_CREDENTIALS_FILE=$AWS_DIR/credentials
-pip install --ignore-installed --prefix="$TEST_ROOT" . awscli
 PATH=$TEST_ROOT/bin:$PATH
+pip install --ignore-installed --prefix="$TEST_ROOT" . awscli
 export PYTHONPATH=$(echo "$TEST_ROOT"/lib/python*/site-packages)
 if ./tests.bats; then
     # all tests succeeded
