@@ -17,16 +17,16 @@ fi
    [[ $(python -msamlkeygen authenticate 2>&1 | tail -n 1) == 'samlkeygen: Need --accounts or --all-accounts' ]]
 }
 
-@test "authenticate --accounts doesn't crash"  {
-   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" --password "$ADFS_PASSWORD" 
+@test "authenticate works when aws dir is not there yet"  {
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" 
 }
 
 @test "authenticate --accounts takes multiple accounts"  {
-   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" "$TEST_ACCOUNT2" --password "$ADFS_PASSWORD" 
+   python -msamlkeygen authenticate --accounts "$TEST_ACCOUNT" "$TEST_ACCOUNT2"
 }
 
 @test "format in --profile works"  {
-   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --role "$TEST_ROLE" --profile '%r' --password "$ADFS_PASSWORD" 
+   python -msamlkeygen authenticate --account "$TEST_ACCOUNT" --role "$TEST_ROLE" --profile '%r'
    grep -q "^\[$TEST_ROLE\]" "$AWS_DIR"/credentials
 }
 
@@ -58,7 +58,7 @@ fi
 @test "samld entry point works"  {
    local pid result tmpfile wait_time
    tmpfile=$TEST_ROOT/samld$$.out
-   (samld --password "$ADFS_PASSWORD") > "$tmpfile" 2>&1 &
+   (samld) > "$tmpfile" 2>&1 &
    pid=$!
    wait_time=15
    if [[ -r ~/.aws/credentials ]]; then
