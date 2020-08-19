@@ -226,6 +226,8 @@ def merge_ini_files(source_files, target_file):
                 target.add_section(sect)
             for (key, value) in source.items(sect):
                 target.set(sect, key, value)
+
+    os.makedirs(os.path.dirname(target_file), exist_ok=True)
     with open(target_file, 'wt') as f:
         target.write(f)
 
@@ -287,6 +289,7 @@ def write_creds_file(filename, profile, token):
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     credentials.set(profile, 'expiration', datetime.strftime(token['Credentials']['Expiration'], '%FT%TZ'))
 
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'wt') as credsfile:
         credentials.write(credsfile)
         credsfile.flush()
