@@ -120,11 +120,23 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
             if regex.search(principal_arn):
                 account_arn = principal_arn
                 break
-        # no easy find on account id, have to actually fetch account aliases:
+
+        # no account id, look for the alias
         if not account_arn:
             if account_id:
                 raise LookupError('no profile found matching account id "{:012}"'.format(account_id))
-            for principal_arn, role_arn in all_roles:
+            for pair in AWS_Account_Aliases:
+                if regex.search(pair['alias']):
+                    regex = re.compile(f'arn:aws:iam::{int(pair["id"]):012}')
+                    for principal_arn, role_arn in all_roles:
+                      if regex.search(principal_arn):
+                         account_arn = principal_arn
+                         break
+                    break
+
+        # didn't find it, do it the hard way
+        if not account_arn:
+              for principal_arn, role_arn in all_roles:
                 account_name = get_account_name(principal_arn, saml_response, role_arn, region)
                 if regex.search(account_name):
                     account_arn = principal_arn
