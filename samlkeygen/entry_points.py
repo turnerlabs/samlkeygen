@@ -120,11 +120,23 @@ def authenticate(url=os.environ.get('ADFS_URL',''), region=os.environ.get('AWS_D
             if regex.search(principal_arn):
                 account_arn = principal_arn
                 break
-        # no easy find on account id, have to actually fetch account aliases:
+
+        # no account id, look for the alias
         if not account_arn:
             if account_id:
                 raise LookupError('no profile found matching account id "{:012}"'.format(account_id))
-            for principal_arn, role_arn in all_roles:
+            for pair in AWS_Account_Aliases:
+                if regex.search(pair['alias']):
+                    arn_prefix = f'arn:aws:iam::{int(pair["id"]):012}:'
+                    for principal_arn, role_arn in all_roles:
+                      if principal_arn.startswith(arn_prefix):
+                         account_arn = principal_arn
+                         break
+                    break
+
+        # didn't find it, do it the hard way
+        if not account_arn:
+              for principal_arn, role_arn in all_roles:
                 account_name = get_account_name(principal_arn, saml_response, role_arn, region)
                 if regex.search(account_name):
                     account_arn = principal_arn
@@ -214,6 +226,8 @@ def merge_ini_files(source_files, target_file):
                 target.add_section(sect)
             for (key, value) in source.items(sect):
                 target.set(sect, key, value)
+
+    os.makedirs(os.path.dirname(target_file), exist_ok=True)
     with open(target_file, 'wt') as f:
         target.write(f)
 
@@ -275,6 +289,7 @@ def write_creds_file(filename, profile, token):
     credentials.set(profile, 'last_updated', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'))
     credentials.set(profile, 'expiration', datetime.strftime(token['Credentials']['Expiration'], '%FT%TZ'))
 
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'wt') as credsfile:
         credentials.write(credsfile)
         credsfile.flush()
