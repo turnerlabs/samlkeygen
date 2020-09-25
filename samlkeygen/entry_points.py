@@ -512,7 +512,8 @@ def get_account_alias(token):
                               aws_session_token=token['Credentials']['SessionToken'])
         return client.list_account_aliases()['AccountAliases'][0]
     except Exception as e:
-        warn("Failed to get account alias for {}".format(token['AssumedRoleUser']['Arn']))
+        warn(f"Failed to get account alias for {token['AssumedRoleUser']['Arn']}:{e}")
+
         return token['AssumedRoleUser']['Arn'].split(":")[4] # The account Number
 
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
