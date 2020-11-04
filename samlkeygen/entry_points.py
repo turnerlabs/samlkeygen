@@ -514,7 +514,7 @@ def get_account_alias(token):
     except Exception as e:
         warn(f"Failed to get account alias for {token['AssumedRoleUser']['Arn']}:{e}")
 
-        return token['AssumedRoleUser']['Arn'].split(":")[4] # The account Number
+        return account_id
 
 @arg('--filename',     help='Name of AWS credentials file', default=CREDS_FILE)
 @arg('pattern', help='Run command with profile matching pattern')
